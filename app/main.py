@@ -59,7 +59,8 @@ def create_app(settings: Settings | None = None, qce: QceClient | None = None) -
             content={"status": "ready" if ready else "unavailable"},
         )
 
-    @app.get("/sessions", dependencies=[Depends(authorize)])
+    @app.get("/sessions", dependencies=[Depends(authorize)], include_in_schema=False)
+    @app.get("/api/v1/sessions", dependencies=[Depends(authorize)])
     async def sessions(
         keyword: Annotated[str | None, Query(max_length=200)] = None,
         limit: Annotated[int | None, Query(ge=1, le=5000)] = None,
@@ -86,7 +87,12 @@ def create_app(settings: Settings | None = None, qce: QceClient | None = None) -
             ]
         }
 
-    @app.get("/sessions/{session_id}/messages", dependencies=[Depends(authorize)])
+    @app.get(
+        "/sessions/{session_id}/messages",
+        dependencies=[Depends(authorize)],
+        include_in_schema=False,
+    )
+    @app.get("/api/v1/sessions/{session_id}/messages", dependencies=[Depends(authorize)])
     async def messages(
         session_id: Annotated[str, Path(min_length=3, max_length=256)],
         format_: Annotated[str, Query(alias="format")],
