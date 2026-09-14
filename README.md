@@ -8,7 +8,8 @@ selected in its data-source screen.
 The adapter is deliberately stateless. It reads QCE through its authenticated
 HTTP API, translates messages into ChatLab Format v0.0.2, and exposes QCE's
 newest-first pages oldest-first through ChatLab's `nextSince` cursor. It never
-mounts NapCat or ChatLab data.
+mounts ChatLab data. A deployment may give it read-only access to QCE's
+`security.json` so automatic token rotation does not require a redeploy.
 
 ## Configuration
 
@@ -16,6 +17,7 @@ mounts NapCat or ChatLab data.
 | --- | --- | --- |
 | `QCE_BASE_URL` | none | QCE origin, without the `/qce` browser prefix |
 | `QCE_TOKEN_FILE` | `/run/secrets/qce/token` | File containing the QCE access token |
+| `QCE_SECURITY_CONFIG_FILE` | unset | QCE `security.json`; read on every request and preferred over `QCE_TOKEN_FILE` |
 | `ADAPTER_TOKEN_FILE` | `/run/secrets/adapter/token` | File containing the Pull bearer token |
 | `SESSION_ALLOWLIST_FILE` | unset | Optional JSON allowlist (see below) |
 | `QCE_TIMEOUT_SECONDS` | `45` | QCE request timeout |

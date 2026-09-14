@@ -20,6 +20,17 @@ def _read_secret(path: str, label: str) -> str:
     return value
 
 
+def _read_qce_security_token(path: str) -> str:
+    try:
+        value = json.loads(Path(path).read_text(encoding="utf-8"))
+        token = value.get("accessToken", "")
+    except (OSError, json.JSONDecodeError, AttributeError) as error:
+        raise ConfigurationError("Unable to read QCE security config") from error
+    if not isinstance(token, str) or len(token) < 16:
+        raise ConfigurationError("QCE security config contains an invalid access token")
+    return token
+
+
 @dataclass(frozen=True)
 class SessionAllowlist:
     groups: frozenset[str]
@@ -50,22 +61,37 @@ def _load_allowlist(path: str | None) -> SessionAllowlist | None:
 @dataclass(frozen=True)
 class Settings:
     qce_base_url: str
-    qce_token: str
+    qce_token: str | None
     adapter_token: str
     timeout_seconds: float
     cache_seconds: float
     allowlist: SessionAllowlist | None
+    qce_security_config_file: str | None = None
+
+    def read_qce_token(self) -> str:
+        if self.qce_security_config_file:
+            return _read_qce_security_token(self.qce_security_config_file)
+        if self.qce_token is None:
+            raise ConfigurationError("QCE token source is not configured")
+        return self.qce_token
 
     @classmethod
     def from_environment(cls) -> Settings:
         base_url = os.environ.get("QCE_BASE_URL", "").strip().rstrip("/")
         if not base_url.startswith(("http://", "https://")):
             raise ConfigurationError("QCE_BASE_URL must be an HTTP(S) URL")
+        security_config_file = os.environ.get("QCE_SECURITY_CONFIG_FILE")
+        if security_config_file:
+            security_config_file = security_config_file.strip()
+            _read_qce_security_token(security_config_file)
+            qce_token = None
+        else:
+            qce_token = _read_secret(
+                os.environ.get("QCE_TOKEN_FILE", "/run/secrets/qce/token"), "QCE token"
+            )
         return cls(
             qce_base_url=base_url,
-            qce_token=_read_secret(
-                os.environ.get("QCE_TOKEN_FILE", "/run/secrets/qce/token"), "QCE token"
-            ),
+            qce_token=qce_token,
             adapter_token=_read_secret(
                 os.environ.get("ADAPTER_TOKEN_FILE", "/run/secrets/adapter/token"),
                 "adapter token",
@@ -73,4 +99,5 @@ class Settings:
             timeout_seconds=float(os.environ.get("QCE_TIMEOUT_SECONDS", "45")),
             cache_seconds=float(os.environ.get("SESSION_CACHE_SECONDS", "30")),
             allowlist=_load_allowlist(os.environ.get("SESSION_ALLOWLIST_FILE")),
+            qce_security_config_file=security_config_file,
         )
