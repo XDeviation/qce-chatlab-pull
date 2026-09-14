@@ -87,15 +87,16 @@ async def client(
 @pytest.mark.asyncio
 async def test_health_and_authentication(client: httpx.AsyncClient) -> None:
     assert (await client.get("/healthz")).status_code == 200
-    unauthorized = await client.get("/sessions")
-    assert unauthorized.status_code == 401
-    assert unauthorized.headers["www-authenticate"] == "Bearer"
+    for path in ("/api/v1/sessions", "/sessions"):
+        unauthorized = await client.get(path)
+        assert unauthorized.status_code == 401
+        assert unauthorized.headers["www-authenticate"] == "Bearer"
 
 
 @pytest.mark.asyncio
 async def test_discovery_and_pull(client: httpx.AsyncClient) -> None:
     headers = {"Authorization": f"Bearer {TOKEN}"}
-    discovery = await client.get("/sessions", headers=headers)
+    discovery = await client.get("/api/v1/sessions", headers=headers)
     assert discovery.status_code == 200
     assert discovery.json()["sessions"] == [
         {"id": "group:42", "name": "Group", "platform": "qq", "type": "group", "memberCount": 3},
@@ -103,7 +104,8 @@ async def test_discovery_and_pull(client: httpx.AsyncClient) -> None:
     ]
 
     pull = await client.get(
-        "/sessions/group:42/messages?format=chatlab&since=0&limit=1000", headers=headers
+        "/api/v1/sessions/group:42/messages?format=chatlab&since=0&limit=1000",
+        headers=headers,
     )
     assert pull.status_code == 200
     body = pull.json()
@@ -116,9 +118,13 @@ async def test_discovery_and_pull(client: httpx.AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_invalid_format_and_unknown_session(client: httpx.AsyncClient) -> None:
     headers = {"Authorization": f"Bearer {TOKEN}"}
-    invalid = await client.get("/sessions/group:42/messages?format=qce", headers=headers)
+    invalid = await client.get(
+        "/api/v1/sessions/group:42/messages?format=qce", headers=headers
+    )
     assert invalid.status_code == 400
-    missing = await client.get("/sessions/group:404/messages?format=chatlab", headers=headers)
+    missing = await client.get(
+        "/api/v1/sessions/group:404/messages?format=chatlab", headers=headers
+    )
     assert missing.status_code == 404
 
 

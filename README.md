@@ -37,8 +37,10 @@ ChatLab instance; ChatLab still pulls only the conversations selected there.
 - `GET /sessions`: authenticated ChatLab session discovery
 - `GET /sessions/{id}/messages?format=chatlab`: authenticated full/incremental pull
 
-Use the in-cluster service URL as the ChatLab data-source URL. Send the adapter
-token as a bearer token. QCE credentials stay inside the adapter container.
+Use `http://qce-chatlab-pull.chatlab.svc.cluster.local:8080/api/v1` as the
+ChatLab data-source URL. Send the adapter token as a bearer token. QCE
+credentials stay inside the adapter container. Legacy unprefixed routes remain
+available for direct health checks and older clients.
 
 ## Development
 
