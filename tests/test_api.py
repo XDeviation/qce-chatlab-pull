@@ -114,6 +114,22 @@ async def test_discovery_and_pull(client: httpx.AsyncClient) -> None:
     assert body["messages"][0]["content"] == "hello"
     assert body["sync"] == {"hasMore": False, "nextSince": 100}
 
+    incremental = await client.get(
+        "/api/v1/sessions/group:42/messages?format=chatlab&since=50&limit=1000",
+        headers=headers,
+    )
+    incremental_body = incremental.json()
+    assert incremental_body["chatlab"]["version"] == "0.0.2"
+    assert incremental_body["meta"] == {
+        "name": "Group",
+        "platform": "qq",
+        "type": "group",
+        "groupId": "42",
+    }
+    assert incremental_body["members"] == [
+        {"platformId": "1", "accountName": "Alice"}
+    ]
+
 
 @pytest.mark.asyncio
 async def test_invalid_format_and_unknown_session(client: httpx.AsyncClient) -> None:

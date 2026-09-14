@@ -49,7 +49,6 @@ def test_document_sorts_messages_and_exposes_timestamp_cursor() -> None:
             {"msgId": "1", "msgTime": 10, "senderUin": "1", "elements": []},
         ],
         members=[],
-        include_metadata=True,
         has_more=True,
         since=0,
     )
