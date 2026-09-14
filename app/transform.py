@@ -199,7 +199,6 @@ def chatlab_document(
     session: dict[str, Any],
     raw_messages: list[dict[str, Any]],
     members: list[dict[str, Any]] | None,
-    include_metadata: bool,
     has_more: bool,
     since: int,
 ) -> dict[str, Any]:
@@ -210,28 +209,23 @@ def chatlab_document(
     if has_more and next_since <= since:
         next_since = since + 1
     document: dict[str, Any] = {
+        "chatlab": {
+            "version": "0.0.2",
+            "exportedAt": int(time.time()),
+            "generator": "qce-chatlab-pull",
+        },
+        "meta": {
+            "name": session["name"],
+            "platform": "qq",
+            "type": session["type"],
+            **(
+                {"groupId": session["remote_id"]}
+                if session["type"] == "group"
+                else {}
+            ),
+        },
+        "members": members if members is not None else members_from_messages(raw_messages),
         "messages": converted,
         "sync": {"hasMore": has_more, "nextSince": next_since},
     }
-    if include_metadata:
-        document.update(
-            {
-                "chatlab": {
-                    "version": "0.0.2",
-                    "exportedAt": int(time.time()),
-                    "generator": "qce-chatlab-pull",
-                },
-                "meta": {
-                    "name": session["name"],
-                    "platform": "qq",
-                    "type": session["type"],
-                    **(
-                        {"groupId": session["remote_id"]}
-                        if session["type"] == "group"
-                        else {}
-                    ),
-                },
-                "members": members if members is not None else members_from_messages(raw_messages),
-            }
-        )
     return document

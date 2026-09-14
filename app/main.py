@@ -107,15 +107,13 @@ def create_app(settings: Settings | None = None, qce: QceClient | None = None) -
         raw_messages, has_more = await resolved_qce.messages(
             session, since=since, limit=limit
         )
-        include_metadata = since == 0
         members = None
-        if include_metadata and session["type"] == "group":
+        if since == 0 and session["type"] == "group":
             members = await resolved_qce.group_members(session["remote_id"])
         return chatlab_document(
             session=session,
             raw_messages=raw_messages,
             members=members,
-            include_metadata=include_metadata,
             has_more=has_more,
             since=since,
         )
