@@ -165,3 +165,33 @@ async def test_qce_newest_first_pages_are_exposed_oldest_first(settings: Setting
     assert [message["msgId"] for message in messages] == ["oldest"]
     assert has_more is True
     assert requested_pages == [1, 3]
+
+
+@pytest.mark.asyncio
+async def test_qce_security_config_is_read_for_every_request(tmp_path: Any) -> None:
+    security_config = tmp_path / "security.json"
+    security_config.write_text(json.dumps({"accessToken": "first-qce-token-value"}))
+    seen_tokens: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_tokens.append(request.headers["authorization"])
+        return qce_response({"napcat": {"online": True}})
+
+    dynamic_settings = Settings(
+        qce_base_url="http://qce.test",
+        qce_token=None,
+        adapter_token=TOKEN,
+        timeout_seconds=1,
+        cache_seconds=30,
+        allowlist=None,
+        qce_security_config_file=str(security_config),
+    )
+    qce = QceClient(dynamic_settings, transport=httpx.MockTransport(handler))
+    try:
+        assert await qce.ready() is True
+        security_config.write_text(json.dumps({"accessToken": "second-qce-token-value"}))
+        assert await qce.ready() is True
+    finally:
+        await qce.close()
+
+    assert seen_tokens == ["Bearer first-qce-token-value", "Bearer second-qce-token-value"]

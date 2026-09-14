@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from app.config import Settings
+from app.config import ConfigurationError, Settings
 
 QCE_QUERY_END_MS = 4_102_444_800_000  # 2100-01-01; keeps QCE's page cache key stable.
 
@@ -20,11 +20,6 @@ class QceClient:
         self._settings = settings
         self._client = httpx.AsyncClient(
             base_url=settings.qce_base_url,
-            headers={
-                "Authorization": f"Bearer {settings.qce_token}",
-                "X-Access-Token": settings.qce_token,
-                "Accept": "application/json",
-            },
             timeout=settings.timeout_seconds,
             follow_redirects=False,
             trust_env=False,
@@ -39,10 +34,20 @@ class QceClient:
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
         try:
-            response = await self._client.request(method, path, **kwargs)
+            token = self._settings.read_qce_token()
+            response = await self._client.request(
+                method,
+                path,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "X-Access-Token": token,
+                    "Accept": "application/json",
+                },
+                **kwargs,
+            )
             response.raise_for_status()
             body = response.json()
-        except (httpx.HTTPError, ValueError) as error:
+        except (ConfigurationError, httpx.HTTPError, ValueError) as error:
             raise QceError("QCE request failed") from error
         if not isinstance(body, dict) or body.get("success") is not True:
             raise QceError("QCE returned an unsuccessful response")
