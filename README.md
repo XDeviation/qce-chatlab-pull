@@ -6,8 +6,9 @@ ChatLab discovers the QQ sessions and only synchronizes the friends and groups
 selected in its data-source screen.
 
 The adapter is deliberately stateless. It reads QCE through its authenticated
-HTTP API, translates messages into ChatLab Format v0.0.2, and uses QCE's paging
-cursor for complete history pulls. It never mounts NapCat or ChatLab data.
+HTTP API, translates messages into ChatLab Format v0.0.2, and exposes QCE's
+newest-first pages oldest-first through ChatLab's `nextSince` cursor. It never
+mounts NapCat or ChatLab data.
 
 ## Configuration
 

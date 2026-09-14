@@ -149,10 +149,15 @@ class QceClient:
             members.append(member)
         return members
 
-    async def messages(
-        self, session: dict[str, Any], *, since: int, offset: int, limit: int
-    ) -> tuple[list[dict[str, Any]], bool]:
-        page = offset // limit + 1
+    async def _message_page(
+        self,
+        session: dict[str, Any],
+        *,
+        since: int,
+        page: int,
+        limit: int,
+        force_refresh: bool,
+    ) -> dict[str, Any]:
         data = await self._request(
             "POST",
             "/api/messages/fetch",
@@ -167,13 +172,34 @@ class QceClient:
                     "startTime": max(0, since) * 1000,
                     "endTime": QCE_QUERY_END_MS,
                 },
-                "forceRefresh": since > 0 and offset == 0,
+                "forceRefresh": force_refresh,
             },
         )
         if not isinstance(data, dict) or not isinstance(data.get("messages"), list):
             raise QceError("QCE returned an invalid message page")
-        messages = [item for item in data["messages"] if isinstance(item, dict)]
-        has_more = bool(data.get("hasNext")) or int(data.get("currentPage") or page) < int(
-            data.get("totalPages") or page
+        return data
+
+    async def messages(
+        self, session: dict[str, Any], *, since: int, limit: int
+    ) -> tuple[list[dict[str, Any]], bool]:
+        first_page = await self._message_page(
+            session,
+            since=since,
+            page=1,
+            limit=limit,
+            force_refresh=since > 0,
         )
-        return messages, has_more
+        total_pages = max(1, int(first_page.get("totalPages") or 1))
+        data = first_page
+        if total_pages > 1:
+            # QCE orders pages newest-first. ChatLab paginates forward with
+            # `since`, so expose the oldest remaining page first.
+            data = await self._message_page(
+                session,
+                since=since,
+                page=total_pages,
+                limit=limit,
+                force_refresh=False,
+            )
+        messages = [item for item in data["messages"] if isinstance(item, dict)]
+        return messages, total_pages > 1

@@ -91,7 +91,6 @@ def create_app(settings: Settings | None = None, qce: QceClient | None = None) -
         session_id: Annotated[str, Path(min_length=3, max_length=256)],
         format_: Annotated[str, Query(alias="format")],
         since: Annotated[int, Query(ge=0)] = 0,
-        offset: Annotated[int, Query(ge=0)] = 0,
         limit: Annotated[int, Query(ge=1, le=2000)] = 1000,
     ) -> dict[str, Any]:
         if format_ != "chatlab":
@@ -100,9 +99,9 @@ def create_app(settings: Settings | None = None, qce: QceClient | None = None) -
         if session is None:
             raise HTTPException(status_code=404, detail="Session not found")
         raw_messages, has_more = await resolved_qce.messages(
-            session, since=since, offset=offset, limit=limit
+            session, since=since, limit=limit
         )
-        include_metadata = since == 0 and offset == 0
+        include_metadata = since == 0
         members = None
         if include_metadata and session["type"] == "group":
             members = await resolved_qce.group_members(session["remote_id"])
@@ -112,7 +111,7 @@ def create_app(settings: Settings | None = None, qce: QceClient | None = None) -
             members=members,
             include_metadata=include_metadata,
             has_more=has_more,
-            next_offset=offset + len(raw_messages),
+            since=since,
         )
 
     return app

@@ -40,7 +40,7 @@ def test_reply_and_millisecond_timestamp_conversion() -> None:
     assert converted["replyToMessageId"] == "m1"
 
 
-def test_document_sorts_messages_and_exposes_offset_cursor() -> None:
+def test_document_sorts_messages_and_exposes_timestamp_cursor() -> None:
     session = {"name": "Group", "type": "group", "remote_id": "42"}
     document = chatlab_document(
         session=session,
@@ -51,7 +51,7 @@ def test_document_sorts_messages_and_exposes_offset_cursor() -> None:
         members=[],
         include_metadata=True,
         has_more=True,
-        next_offset=2,
+        since=0,
     )
     assert [message["platformMessageId"] for message in document["messages"]] == ["1", "2"]
     assert document["meta"] == {
@@ -60,4 +60,4 @@ def test_document_sorts_messages_and_exposes_offset_cursor() -> None:
         "type": "group",
         "groupId": "42",
     }
-    assert document["sync"] == {"hasMore": True, "nextOffset": 2}
+    assert document["sync"] == {"hasMore": True, "nextSince": 20}
