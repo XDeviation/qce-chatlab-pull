@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -109,7 +110,7 @@ async def test_discovery_and_pull(client: httpx.AsyncClient) -> None:
     assert body["chatlab"]["version"] == "0.0.2"
     assert body["members"][0]["roles"] == [{"id": "owner"}]
     assert body["messages"][0]["content"] == "hello"
-    assert body["sync"] == {"hasMore": False, "nextOffset": 1}
+    assert body["sync"] == {"hasMore": False, "nextSince": 100}
 
 
 @pytest.mark.asyncio
@@ -119,3 +120,42 @@ async def test_invalid_format_and_unknown_session(client: httpx.AsyncClient) -> 
     assert invalid.status_code == 400
     missing = await client.get("/sessions/group:404/messages?format=chatlab", headers=headers)
     assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_qce_newest_first_pages_are_exposed_oldest_first(settings: Settings) -> None:
+    requested_pages: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        requested_pages.append(body["page"])
+        if body["page"] == 1:
+            return qce_response(
+                {
+                    "messages": [{"msgId": "newest", "msgTime": 300}],
+                    "currentPage": 1,
+                    "totalPages": 3,
+                    "hasNext": True,
+                }
+            )
+        assert body["page"] == 3
+        return qce_response(
+            {
+                "messages": [{"msgId": "oldest", "msgTime": 100}],
+                "currentPage": 3,
+                "totalPages": 3,
+                "hasNext": False,
+            }
+        )
+
+    qce = QceClient(settings, transport=httpx.MockTransport(handler))
+    try:
+        messages, has_more = await qce.messages(
+            {"type": "group", "remote_id": "42"}, since=0, limit=1
+        )
+    finally:
+        await qce.close()
+
+    assert [message["msgId"] for message in messages] == ["oldest"]
+    assert has_more is True
+    assert requested_pages == [1, 3]

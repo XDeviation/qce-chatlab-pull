@@ -201,13 +201,17 @@ def chatlab_document(
     members: list[dict[str, Any]] | None,
     include_metadata: bool,
     has_more: bool,
-    next_offset: int,
+    since: int,
 ) -> dict[str, Any]:
     converted = [item for message in raw_messages if (item := message_to_chatlab(message))]
     converted.sort(key=lambda item: (item["timestamp"], item.get("platformMessageId", "")))
+    raw_timestamps = [timestamp_seconds(message) for message in raw_messages]
+    next_since = max([since, *(item for item in raw_timestamps if item > 0)])
+    if has_more and next_since <= since:
+        next_since = since + 1
     document: dict[str, Any] = {
         "messages": converted,
-        "sync": {"hasMore": has_more, "nextOffset": next_offset},
+        "sync": {"hasMore": has_more, "nextSince": next_since},
     }
     if include_metadata:
         document.update(
